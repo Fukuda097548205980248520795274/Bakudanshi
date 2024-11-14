@@ -233,6 +233,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 移動速度
 	boss.vel = { 0.0f , 0.0f };
 
+	// ジャンプ
+	boss.jump.isJump = false;
+	boss.jump.count = 0;
+
 	// 加速度
 	boss.accleration = { 0.0f , 0.0f };
 
