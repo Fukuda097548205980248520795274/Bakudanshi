@@ -235,6 +235,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// ジャンプ
 	boss.jump.isJump = false;
+	boss.jump.fallingVel = 0.0f;
 	boss.jump.count = 0;
 
 	// 加速度
@@ -322,7 +323,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		EnemyMove(enemy , &player);
 
 		// ボスを動かす
-		BossMove(&boss , &player);
+		BossMove(&boss , &player , bullet);
 
 
 		/*-----------------
@@ -336,14 +337,45 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			{
 				if (bullet[i].isShot)
 				{
-					if (bullet[i].type == BULLET_TYPE_EXPLOSION)
+					if (HitBox(player.shape, bullet[i].shape))
 					{
-						if (HitBox(player.shape, bullet[i].shape))
+						switch (bullet[i].type)
 						{
+						case BULLET_TYPE_EXPLOSION:
+
 							if (player.damage.isDamage == false)
 							{
 								player.damage.isDamage = true;
 							}
+
+							break;
+
+						case BULLET_TYPE_VIBRATION_LEFT:
+
+							if (player.damage.isDamage == false)
+							{
+								player.damage.isDamage = true;
+							}
+
+							break;
+
+						case BULLET_TYPE_VIBRATION_RIGHT:
+
+							if (player.damage.isDamage == false)
+							{
+								player.damage.isDamage = true;
+							}
+
+							break;
+
+						case BULLET_TYPE_RUBBLE_SMALL:
+
+							if (player.damage.isDamage == false)
+							{
+								player.damage.isDamage = true;
+							}
+
+							break;
 						}
 					}
 				}
