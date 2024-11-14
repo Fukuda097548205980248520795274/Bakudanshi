@@ -163,8 +163,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// 出現しているかどうか（出現フラグ）
 		enemy[i].isArrival = false;
 
+		// フレーム
+		enemy[i].frame = 0;
+
 		// 種類
 		enemy[i].type = -1;
+
+		// 向いている方向
+		enemy[i].directionNo = -1;
 
 		// 図形
 		enemy[i].shape.scale = { 0.0f , 0.0f };
@@ -200,8 +206,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 出現しているかどうか（出現フラグ）
 	boss.isArrival = false;
 
+	// フレーム
+	boss.frame = 0;
+
 	// 種類
 	boss.type = -1;
+
+	// 向いている方向
+	boss.directionNo = -1;
 
 	// 攻撃しているかどうか（攻撃フラグ）
 	boss.isAttack = false;
@@ -303,10 +315,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		BulletMove(bullet);
 
 		// 敵を動かす
-		EnemyMove(enemy);
+		EnemyMove(enemy , &player);
 
 		// ボスを動かす
-		BossMove(&boss);
+		BossMove(&boss , &player);
 
 
 		/*-----------------
