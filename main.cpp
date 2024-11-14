@@ -11,27 +11,46 @@
 #include "Enemy.h"
 #include "Boss.h"
 
-const char kWindowTitle[] = "1228_爆昼夢";
+const char kWindowTitle[] = "1228_爆男子";
+
+// ゲームの状態を表す列挙型
+enum GameState {
+    TITLE,
+    MENU,
+    STAGE_SELECT,
+    GAME,
+    GAME_OVER,
+    GAME_CLEAR
+};
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-	// ライブラリの初期化
-	Novice::Initialize(kWindowTitle, kScreenWtidh, kScreenHeight);
+    // ライブラリの初期化
+    Novice::Initialize(kWindowTitle, kScreenWtidh, kScreenHeight);
 
-	// キー入力結果を受け取る箱
-	char keys[256] = {0};
-	char preKeys[256] = {0};
+    // キー入力結果を受け取る箱
+    char keys[256] = { 0 };
+    char preKeys[256] = { 0 };
+
+    // 初期状態はタイトル画面
+    GameState gameState = TITLE;
+
+    /*------------------------------
+        変数を作り、初期値を入れる
+    ------------------------------*/
+
+    // プレイヤー、爆弾、弾、敵、ボスの初期化コード
+    Player player;
+    Bomb bomb[kBombNum];
+    Bullet bullet[kBulletNum];
+    Enemy enemy[kEnemyNum];
+    Boss boss;
+
+    PlayerInitialValue(&player);
+    // Bomb, Bullet, Enemy, Bossの初期化コードをそれぞれ追加
 
 
-	/*------------------------------
-	    変数を作り、初期値を入れる
-	------------------------------*/
-
-	/*   プレイヤー   */
-
-	// 構造体
-	Player player;
 
 	// 復活
 	player.respawn.isRespawn = true;
@@ -63,17 +82,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	player.jump.count = 0;
 
 	// 図形
-	player.shape.scale = { 0.0f , 0.0f };
+	player.shape.scale = { 16.0f , 16.0f };
 	player.shape.theta = 0.0f;
 	player.shape.translate = { 0.0f , 0.0f };
 
-	PlayerInitialValue(&player);
-
-
 	/*   爆弾   */
-
-	// 構造体
-	Bomb bomb[kBombNum];
 
 	for (int i = 0; i < kBombNum; i++)
 	{
@@ -106,11 +119,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		bomb[i].acceleration = { 0.0f , 0.0f };
 	}
 
-
 	/*   弾   */
-
-	// 構造体
-	Bullet bullet[kBulletNum];
 
 	for (int i = 0; i < kBulletNum; i++)
 	{
@@ -143,11 +152,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		bullet[i].acceleration = { 0.0f , 0.0f };
 	}
 
-
 	/*   敵   */
-
-	// 構造体
-	Enemy enemy[kEnemyNum];
 
 	for (int i = 0; i < kEnemyNum; i++)
 	{
@@ -188,11 +193,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		enemy[i].acceleration = { 0.0f , 0.0f };
 	}
 
-
 	/*   ボス   */
-
-	// 構造体
-	Boss boss;
 
 	// 復活
 	boss.respawn.isRespawn = true;
@@ -249,356 +250,423 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// Xが左右、Yが上下
 	leftStick.x = 0;
 	leftStick.y = 0;
-	
+
 	/*   画像   */
 
 	// 白い図形
 	int ghWhite = Novice::LoadTexture("./NoviceResources/white1x1.png");
 
+    // ウィンドウの×ボタンが押されるまでループ
+    while (Novice::ProcessMessage() == 0) {
+        // フレームの開始
+        Novice::BeginFrame();
 
-	// ウィンドウの×ボタンが押されるまでループ
-	while (Novice::ProcessMessage() == 0) {
-		// フレームの開始
-		Novice::BeginFrame();
+        // キー入力を受け取る
+        memcpy(preKeys, keys, 256);
+        Novice::GetHitKeyStateAll(keys);
 
-		// キー入力を受け取る
-		memcpy(preKeys, keys, 256);
-		Novice::GetHitKeyStateAll(keys);
+        // Rキーでタイトル画面に戻る
+        if (keys[DIK_R] && !preKeys[DIK_R]) {
+            gameState = TITLE;
+        }
 
-		///
-		/// ↓更新処理ここから
-		///
+        // シーンごとの処理
+        switch (gameState) {
+        case TITLE:
+            // タイトル画面の描画
+            Novice::ScreenPrintf(100,100,"title");
+            if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {  // スペースキーでメニューへ
+                gameState = MENU;
+            }
+            break;
 
-		/*----------------------
-		    復活、ダメージ処理
+        case MENU:
+            // メニュー画面の描画
+            Novice::ScreenPrintf(100, 100, "menu");
+            if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {  // 1キーでステージセレクトへ
+                gameState = STAGE_SELECT;
+            }
+            break;
+
+        case STAGE_SELECT:
+            // ステージセレクトの描画
+            Novice::ScreenPrintf(100, 100, "stage select");
+            if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {  // 1キーでゲームスタート
+                gameState = GAME;
+            }
+            break;
+
+        case GAME:
+            // ゲームのメイン処理
+            /*----------------------
+                復活、ダメージ処理
+            ----------------------*/
+
+            RespawnProcess(&player.respawn);
+            DamageProcess(&player);
+
+            for (int i = 0; i < kBombNum; i++) {
+                RespawnProcess(&bomb[i].respawn);
+            }
+
+            for (int i = 0; i < kBulletNum; i++) {
+                RespawnProcess(&bullet[i].respawn);
+            }
+
+            for (int i = 0; i < kEnemyNum; i++) {
+                RespawnProcess(&enemy[i].respawn);
+                DamageProcess(&enemy[i]);
+            }
+
+            RespawnProcess(&boss.respawn);
+            DamageProcess(&boss);
+
+            /*-------------------
+                動きを設定する
+            -------------------*/
+
+            BossArrival(&boss, BOSS_TYPE_STAGE_1);
+            PlayerMove(&player, keys, preKeys, &leftStick);
+            PlayerBombUse(&player, bomb, bullet, keys, preKeys);
+            BombMove(bomb, bullet);
+            BulletMove(bullet);
+            EnemyMove(enemy, &player);
+            BossMove(&boss, &player, bullet);
+
+            /*-----------------
+                当たり判定
+            -----------------*/
+
+            // プレイヤー と 爆発の判定など
+            // 以下に全ての当たり判定処理を実装
+
+			/*----------------------
+			復活、ダメージ処理
 		----------------------*/
 
 		// プレイヤー
-		RespawnProcess(&player.respawn);
-		DamageProcess(&player);
+			RespawnProcess(&player.respawn);
+			DamageProcess(&player);
 
-		// 爆弾
-		for (int i = 0; i < kBombNum; i++)
-		{
-			RespawnProcess(&bomb[i].respawn);
-		}
+			// 爆弾
+			for (int i = 0; i < kBombNum; i++)
+			{
+				RespawnProcess(&bomb[i].respawn);
+			}
 
-		// 弾
-		for (int i = 0; i < kBulletNum; i++)
-		{
-			RespawnProcess(&bullet[i].respawn);
-		}
-
-		// 敵
-		for (int i = 0; i < kEnemyNum; i++)
-		{
-			RespawnProcess(&enemy[i].respawn);
-			DamageProcess(&enemy[i]);
-		}
-
-		// ボス
-		RespawnProcess(&boss.respawn);
-		DamageProcess(&boss);
-
-
-		/*-------------------
-		    動きを設定する
-		-------------------*/
-
-		BossArrival(&boss, BOSS_TYPE_STAGE_1);
-
-		// プレイヤーの移動操作
-		PlayerMove(&player, keys , preKeys, &leftStick);
-
-		// プレイヤーが爆弾を使う
-		PlayerBombUse(&player, bomb, bullet, keys, preKeys);
-
-		// 爆弾を動かす
-		BombMove(bomb, bullet);
-
-		// 弾を動かす
-		BulletMove(bullet);
-
-		// 敵を動かす
-		EnemyMove(enemy , &player);
-
-		// ボスを動かす
-		BossMove(&boss , &player , bullet);
-
-
-		/*-----------------
-		    当たり判定
-		-----------------*/
-
-		// プレイヤー と 爆発
-		if (player.respawn.isRespawn)
-		{
+			// 弾
 			for (int i = 0; i < kBulletNum; i++)
 			{
-				if (bullet[i].isShot)
+				RespawnProcess(&bullet[i].respawn);
+			}
+
+			// 敵
+			for (int i = 0; i < kEnemyNum; i++)
+			{
+				RespawnProcess(&enemy[i].respawn);
+				DamageProcess(&enemy[i]);
+			}
+
+			// ボス
+			RespawnProcess(&boss.respawn);
+			DamageProcess(&boss);
+
+
+			/*-------------------
+				動きを設定する
+			-------------------*/
+
+			BossArrival(&boss, BOSS_TYPE_STAGE_1);
+
+			// プレイヤーの移動操作
+			PlayerMove(&player, keys, preKeys, &leftStick);
+
+			// プレイヤーが爆弾を使う
+			PlayerBombUse(&player, bomb, bullet, keys, preKeys);
+
+			// 爆弾を動かす
+			BombMove(bomb, bullet);
+
+			// 弾を動かす
+			BulletMove(bullet);
+
+			// 敵を動かす
+			EnemyMove(enemy, &player);
+
+			// ボスを動かす
+			BossMove(&boss, &player, bullet);
+
+
+			/*-----------------
+				当たり判定
+			-----------------*/
+
+			// プレイヤー と 爆発
+			if (player.respawn.isRespawn)
+			{
+				for (int i = 0; i < kBulletNum; i++)
 				{
-					if (HitBox(player.shape, bullet[i].shape))
+					if (bullet[i].isShot)
 					{
-						switch (bullet[i].type)
+						if (HitBox(player.shape, bullet[i].shape))
 						{
-						case BULLET_TYPE_EXPLOSION:
-
-							if (player.damage.isDamage == false)
+							switch (bullet[i].type)
 							{
-								player.damage.isDamage = true;
+							case BULLET_TYPE_EXPLOSION:
+
+								if (player.damage.isDamage == false)
+								{
+									player.damage.isDamage = true;
+								}
+
+								break;
+
+							case BULLET_TYPE_VIBRATION_LEFT:
+
+								if (player.damage.isDamage == false)
+								{
+									player.damage.isDamage = true;
+								}
+
+								break;
+
+							case BULLET_TYPE_VIBRATION_RIGHT:
+
+								if (player.damage.isDamage == false)
+								{
+									player.damage.isDamage = true;
+								}
+
+								break;
+
+							case BULLET_TYPE_RUBBLE_SMALL:
+
+								if (player.damage.isDamage == false)
+								{
+									player.damage.isDamage = true;
+								}
+
+								break;
 							}
-
-							break;
-
-						case BULLET_TYPE_VIBRATION_LEFT:
-
-							if (player.damage.isDamage == false)
-							{
-								player.damage.isDamage = true;
-							}
-
-							break;
-
-						case BULLET_TYPE_VIBRATION_RIGHT:
-
-							if (player.damage.isDamage == false)
-							{
-								player.damage.isDamage = true;
-							}
-
-							break;
-
-						case BULLET_TYPE_RUBBLE_SMALL:
-
-							if (player.damage.isDamage == false)
-							{
-								player.damage.isDamage = true;
-							}
-
-							break;
 						}
 					}
 				}
 			}
-		}
 
-		// 敵 と 爆発
-		for (int i = 0; i < kEnemyNum; i++)
-		{
-			if (enemy[i].isArrival)
+			// 敵 と 爆発
+			for (int i = 0; i < kEnemyNum; i++)
 			{
-				for (int j = 0; j < kBulletNum; j++)
+				if (enemy[i].isArrival)
 				{
-					if (bullet[j].isShot)
+					for (int j = 0; j < kBulletNum; j++)
 					{
-						if (bullet[j].type == BULLET_TYPE_EXPLOSION)
+						if (bullet[j].isShot)
 						{
-							if (HitBox(enemy[i].shape, bullet[j].shape))
+							if (bullet[j].type == BULLET_TYPE_EXPLOSION)
 							{
-								if (enemy[i].damage.isDamage == false)
+								if (HitBox(enemy[i].shape, bullet[j].shape))
 								{
-									enemy[i].damage.isDamage = true;
+									if (enemy[i].damage.isDamage == false)
+									{
+										enemy[i].damage.isDamage = true;
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-		}
 
-		// ボス と 爆発
-		if (boss.isArrival)
-		{
-			for (int i = 0; i < kBulletNum; i++)
+			// ボス と 爆発
+			if (boss.isArrival)
 			{
-				if (bullet[i].isShot)
+				for (int i = 0; i < kBulletNum; i++)
 				{
-					if (bullet[i].type == BULLET_TYPE_EXPLOSION)
+					if (bullet[i].isShot)
 					{
-						if (HitBox(boss.shape, bullet[i].shape))
+						if (bullet[i].type == BULLET_TYPE_EXPLOSION)
 						{
-							if (boss.damage.isDamage == false)
+							if (HitBox(boss.shape, bullet[i].shape))
 							{
-								boss.damage.isDamage = true;
+								if (boss.damage.isDamage == false)
+								{
+									boss.damage.isDamage = true;
+								}
 							}
 						}
 					}
 				}
 			}
-		}
 
+            /*-------------
+                座標変換
+            -------------*/
 
-		/*-------------
-		    座標変換
-		-------------*/
+            player.pos.screen = CoordinateTransformation(player.pos.world);
+            for (int i = 0; i < kBombNum; i++) {
+                bomb[i].pos.screen = CoordinateTransformation(bomb[i].pos.world);
+            }
+            for (int i = 0; i < kBulletNum; i++) {
+                bullet[i].pos.screen = CoordinateTransformation(bullet[i].pos.world);
+            }
+            for (int i = 0; i < kEnemyNum; i++) {
+                enemy[i].pos.screen = CoordinateTransformation(enemy[i].pos.world);
+            }
+            boss.pos.screen = CoordinateTransformation(boss.pos.world);
 
-		// プレイヤー
-		player.pos.screen = CoordinateTransformation(player.pos.world);
+            ///* ゲームオーバー、クリア判定 */
+            //if (player.damage.hp <= 0) {
+            //    gameState = GAME_OVER;
+            //} else if (boss.isDefeated) {
+            //    gameState = GAME_CLEAR;
+            //}        
 
-		// 爆弾
-		for (int i = 0; i < kBombNum; i++)
-		{
-			bomb[i].pos.screen = CoordinateTransformation(bomb[i].pos.world);
-		}
-
-		// 弾
-		for (int i = 0; i < kBulletNum; i++)
-		{
-			bullet[i].pos.screen = CoordinateTransformation(bullet[i].pos.world);
-		}
-
-		// 敵
-		for (int i = 0; i < kEnemyNum; i++)
-		{
-			enemy[i].pos.screen = CoordinateTransformation(enemy[i].pos.world);
-		}
-
-		// ボス
-		boss.pos.screen = CoordinateTransformation(boss.pos.world);
-
-		///
-		/// ↑更新処理ここまで
-		///
-
-		///
-		/// ↓描画処理ここから
-		///
-
-		/*----------------------------
-		    図形や画像を描画する
-		----------------------------*/
-
-		// ボス
-		if (boss.isArrival)
-		{
-			if (boss.damage.isDamage == false)
+            /* 描画処理 */
+            // ここにゲーム中の描画処理を配置7
+				// ボス
+			if (boss.isArrival)
 			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(boss.pos.screen.leftTop.x), static_cast<int>(boss.pos.screen.leftTop.y),
-					static_cast<int>(boss.pos.screen.rightTop.x), static_cast<int>(boss.pos.screen.rightTop.y),
-					static_cast<int>(boss.pos.screen.leftBottom.x), static_cast<int>(boss.pos.screen.leftBottom.y),
-					static_cast<int>(boss.pos.screen.rightBottom.x), static_cast<int>(boss.pos.screen.rightBottom.y),
-					0, 0, 1, 1, ghWhite, 0xFFFFFFFF
-				);
-			}
-			else
-			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(boss.pos.screen.leftTop.x), static_cast<int>(boss.pos.screen.leftTop.y),
-					static_cast<int>(boss.pos.screen.rightTop.x), static_cast<int>(boss.pos.screen.rightTop.y),
-					static_cast<int>(boss.pos.screen.leftBottom.x), static_cast<int>(boss.pos.screen.leftBottom.y),
-					static_cast<int>(boss.pos.screen.rightBottom.x), static_cast<int>(boss.pos.screen.rightBottom.y),
-					0, 0, 1, 1, ghWhite, 0x000000FF
-				);
-			}
-		}
-
-		// 敵
-		for (int i = 0; i < kEnemyNum; i++)
-		{
-			if (enemy[i].isArrival)
-			{
-				if (enemy[i].damage.isDamage == false)
+				if (boss.damage.isDamage == false)
 				{
 					Novice::DrawQuad
 					(
-						static_cast<int>(enemy[i].pos.screen.leftTop.x) , static_cast<int>(enemy[i].pos.screen.leftTop.y) ,
-						static_cast<int>(enemy[i].pos.screen.rightTop.x), static_cast<int>(enemy[i].pos.screen.rightTop.y),
-						static_cast<int>(enemy[i].pos.screen.leftBottom.x), static_cast<int>(enemy[i].pos.screen.leftBottom.y),
-						static_cast<int>(enemy[i].pos.screen.rightBottom.x), static_cast<int>(enemy[i].pos.screen.rightBottom.y),
-						0,0,1,1,ghWhite,0xFFFFFFFF
+						static_cast<int>(boss.pos.screen.leftTop.x), static_cast<int>(boss.pos.screen.leftTop.y),
+						static_cast<int>(boss.pos.screen.rightTop.x), static_cast<int>(boss.pos.screen.rightTop.y),
+						static_cast<int>(boss.pos.screen.leftBottom.x), static_cast<int>(boss.pos.screen.leftBottom.y),
+						static_cast<int>(boss.pos.screen.rightBottom.x), static_cast<int>(boss.pos.screen.rightBottom.y),
+						0, 0, 1, 1, ghWhite, 0xFFFFFFFF
 					);
-				}
-				else
+				} else
 				{
 					Novice::DrawQuad
 					(
-						static_cast<int>(enemy[i].pos.screen.leftTop.x), static_cast<int>(enemy[i].pos.screen.leftTop.y),
-						static_cast<int>(enemy[i].pos.screen.rightTop.x), static_cast<int>(enemy[i].pos.screen.rightTop.y),
-						static_cast<int>(enemy[i].pos.screen.leftBottom.x), static_cast<int>(enemy[i].pos.screen.leftBottom.y),
-						static_cast<int>(enemy[i].pos.screen.rightBottom.x), static_cast<int>(enemy[i].pos.screen.rightBottom.y),
+						static_cast<int>(boss.pos.screen.leftTop.x), static_cast<int>(boss.pos.screen.leftTop.y),
+						static_cast<int>(boss.pos.screen.rightTop.x), static_cast<int>(boss.pos.screen.rightTop.y),
+						static_cast<int>(boss.pos.screen.leftBottom.x), static_cast<int>(boss.pos.screen.leftBottom.y),
+						static_cast<int>(boss.pos.screen.rightBottom.x), static_cast<int>(boss.pos.screen.rightBottom.y),
 						0, 0, 1, 1, ghWhite, 0x000000FF
 					);
 				}
 			}
-		}
 
-		// 弾
-		for (int i = 0; i < kBulletNum; i++)
-		{
-			if (bullet[i].isShot)
+			// 敵
+			for (int i = 0; i < kEnemyNum; i++)
 			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(bullet[i].pos.screen.leftTop.x), static_cast<int>(bullet[i].pos.screen.leftTop.y),
-					static_cast<int>(bullet[i].pos.screen.rightTop.x), static_cast<int>(bullet[i].pos.screen.rightTop.y),
-					static_cast<int>(bullet[i].pos.screen.leftBottom.x), static_cast<int>(bullet[i].pos.screen.leftBottom.y),
-					static_cast<int>(bullet[i].pos.screen.rightBottom.x), static_cast<int>(bullet[i].pos.screen.rightBottom.y),
-					0, 0, 1, 1, ghWhite, 0xFFFFFFFF
-				);
+				if (enemy[i].isArrival)
+				{
+					if (enemy[i].damage.isDamage == false)
+					{
+						Novice::DrawQuad
+						(
+							static_cast<int>(enemy[i].pos.screen.leftTop.x), static_cast<int>(enemy[i].pos.screen.leftTop.y),
+							static_cast<int>(enemy[i].pos.screen.rightTop.x), static_cast<int>(enemy[i].pos.screen.rightTop.y),
+							static_cast<int>(enemy[i].pos.screen.leftBottom.x), static_cast<int>(enemy[i].pos.screen.leftBottom.y),
+							static_cast<int>(enemy[i].pos.screen.rightBottom.x), static_cast<int>(enemy[i].pos.screen.rightBottom.y),
+							0, 0, 1, 1, ghWhite, 0xFFFFFFFF
+						);
+					} else
+					{
+						Novice::DrawQuad
+						(
+							static_cast<int>(enemy[i].pos.screen.leftTop.x), static_cast<int>(enemy[i].pos.screen.leftTop.y),
+							static_cast<int>(enemy[i].pos.screen.rightTop.x), static_cast<int>(enemy[i].pos.screen.rightTop.y),
+							static_cast<int>(enemy[i].pos.screen.leftBottom.x), static_cast<int>(enemy[i].pos.screen.leftBottom.y),
+							static_cast<int>(enemy[i].pos.screen.rightBottom.x), static_cast<int>(enemy[i].pos.screen.rightBottom.y),
+							0, 0, 1, 1, ghWhite, 0x000000FF
+						);
+					}
+				}
 			}
-		}
 
-		// 爆弾
-		for (int i = 0; i < kBombNum; i++)
-		{
-			if (bomb[i].isBoot || bomb[i].isShot)
+			// 弾
+			for (int i = 0; i < kBulletNum; i++)
 			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(bomb[i].pos.screen.leftTop.x) , static_cast<int>(bomb[i].pos.screen.leftTop.y) ,
-					static_cast<int>(bomb[i].pos.screen.rightTop.x), static_cast<int>(bomb[i].pos.screen.rightTop.y),
-					static_cast<int>(bomb[i].pos.screen.leftBottom.x), static_cast<int>(bomb[i].pos.screen.leftBottom.y),
-					static_cast<int>(bomb[i].pos.screen.rightBottom.x), static_cast<int>(bomb[i].pos.screen.rightBottom.y),
-					0 , 0 , 1 , 1, ghWhite , 0xFFFFFFFF
-				);
+				if (bullet[i].isShot)
+				{
+					Novice::DrawQuad
+					(
+						static_cast<int>(bullet[i].pos.screen.leftTop.x), static_cast<int>(bullet[i].pos.screen.leftTop.y),
+						static_cast<int>(bullet[i].pos.screen.rightTop.x), static_cast<int>(bullet[i].pos.screen.rightTop.y),
+						static_cast<int>(bullet[i].pos.screen.leftBottom.x), static_cast<int>(bullet[i].pos.screen.leftBottom.y),
+						static_cast<int>(bullet[i].pos.screen.rightBottom.x), static_cast<int>(bullet[i].pos.screen.rightBottom.y),
+						0, 0, 1, 1, ghWhite, 0xFFFFFFFF
+					);
+				}
 			}
-		}
 
-
-		// プレイヤー
-		if (player.respawn.isRespawn)
-		{
-			if (player.damage.isDamage == false)
+			// 爆弾
+			for (int i = 0; i < kBombNum; i++)
 			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(player.pos.screen.leftTop.x), static_cast<int>(player.pos.screen.leftTop.y),
-					static_cast<int>(player.pos.screen.rightTop.x), static_cast<int>(player.pos.screen.rightTop.y),
-					static_cast<int>(player.pos.screen.leftBottom.x), static_cast<int>(player.pos.screen.leftBottom.y),
-					static_cast<int>(player.pos.screen.rightBottom.x), static_cast<int>(player.pos.screen.rightBottom.y),
-					0, 0, 1, 1, ghWhite, 0xFFFFFFFF
-				);
+				if (bomb[i].isBoot || bomb[i].isShot)
+				{
+					Novice::DrawQuad
+					(
+						static_cast<int>(bomb[i].pos.screen.leftTop.x), static_cast<int>(bomb[i].pos.screen.leftTop.y),
+						static_cast<int>(bomb[i].pos.screen.rightTop.x), static_cast<int>(bomb[i].pos.screen.rightTop.y),
+						static_cast<int>(bomb[i].pos.screen.leftBottom.x), static_cast<int>(bomb[i].pos.screen.leftBottom.y),
+						static_cast<int>(bomb[i].pos.screen.rightBottom.x), static_cast<int>(bomb[i].pos.screen.rightBottom.y),
+						0, 0, 1, 1, ghWhite, 0xFFFFFFFF
+					);
+				}
 			}
-			else
+
+
+			// プレイヤー
+			if (player.respawn.isRespawn)
 			{
-				Novice::DrawQuad
-				(
-					static_cast<int>(player.pos.screen.leftTop.x), static_cast<int>(player.pos.screen.leftTop.y),
-					static_cast<int>(player.pos.screen.rightTop.x), static_cast<int>(player.pos.screen.rightTop.y),
-					static_cast<int>(player.pos.screen.leftBottom.x), static_cast<int>(player.pos.screen.leftBottom.y),
-					static_cast<int>(player.pos.screen.rightBottom.x), static_cast<int>(player.pos.screen.rightBottom.y),
-					0, 0, 1, 1, ghWhite, 0x000000FF
-				);
+				if (player.damage.isDamage == false)
+				{
+					Novice::DrawQuad
+					(
+						static_cast<int>(player.pos.screen.leftTop.x), static_cast<int>(player.pos.screen.leftTop.y),
+						static_cast<int>(player.pos.screen.rightTop.x), static_cast<int>(player.pos.screen.rightTop.y),
+						static_cast<int>(player.pos.screen.leftBottom.x), static_cast<int>(player.pos.screen.leftBottom.y),
+						static_cast<int>(player.pos.screen.rightBottom.x), static_cast<int>(player.pos.screen.rightBottom.y),
+						0, 0, 1, 1, ghWhite, 0xFFFFFFFF
+					);
+				} else
+				{
+					Novice::DrawQuad
+					(
+						static_cast<int>(player.pos.screen.leftTop.x), static_cast<int>(player.pos.screen.leftTop.y),
+						static_cast<int>(player.pos.screen.rightTop.x), static_cast<int>(player.pos.screen.rightTop.y),
+						static_cast<int>(player.pos.screen.leftBottom.x), static_cast<int>(player.pos.screen.leftBottom.y),
+						static_cast<int>(player.pos.screen.rightBottom.x), static_cast<int>(player.pos.screen.rightBottom.y),
+						0, 0, 1, 1, ghWhite, 0x000000FF
+					);
+				}
 			}
-		}
 
-		///
-		/// ↑描画処理ここまで
-		///
+            if (keys[DIK_R] && !preKeys[DIK_R]) {
+                gameState = TITLE;
+            }
+            break;
 
-		// フレームの終了
-		Novice::EndFrame();
+        case GAME_OVER:
+            Novice::ScreenPrintf(100,100,"game over");
+            if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
+                gameState = TITLE;
+            }
+            break;
 
-		// ESCキーが押されたらループを抜ける
-		if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
-			break;
-		}
-	}
+        case GAME_CLEAR:
+            Novice::ScreenPrintf(100,100,"game clear");
+            if (keys[DIK_SPACE]&&!preKeys[DIK_SPACE]) {
+                gameState = TITLE;
+            }
+            break;
+        }
 
-	// ライブラリの終了
-	Novice::Finalize();
-	return 0;
+        // フレームの終了
+        Novice::EndFrame();
+
+        // ESCキーが押されたらループを抜ける
+        if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
+            break;
+        }
+    }
+
+    // ライブラリの終了
+    Novice::Finalize();
+    return 0;
 }
